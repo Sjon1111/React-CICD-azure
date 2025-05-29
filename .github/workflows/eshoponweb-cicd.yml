@@ -1,0 +1,87 @@
+name: React App Build and Deploy CI/CD azure
+
+on: [push, workflow_dispatch]
+
+env:
+  RESOURCE-GROUP: RG-CTB39-AZ-400-5
+  LOCATION: eastus2
+  TEMPLATE-FILE: infra/webapp.bicep
+  SUBSCRIPTION-ID: 71b5939b-c815-41f4-a455-8323e846ebea
+  WEBAPP-NAME: Expanger-Web-app
+
+jobs:
+   buildandtest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build React App (Vite)
+        run: npm run build
+
+      - name: Zip Vite dist folder
+        run: |
+          cd dist
+          zip -r ../app.zip .
+
+      - name: Upload artifact for deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: react-app
+          path: app.zip
+
+      - name: Upload Bicep Template
+        uses: actions/upload-artifact@v4
+        with:
+          name: bicep-template
+          path: ${{ env.TEMPLATE-FILE }}
+
+   deploy:
+    runs-on: ubuntu-latest
+    needs: buildandtest
+    environment:
+      name: 'Development'
+    steps:
+      # Download React app artifact
+      - name: Download React app artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: react-app
+          path: react-app
+
+      # Download Bicep template
+      - name: Download Bicep template
+        uses: actions/download-artifact@v4
+        with:
+          name: bicep-template
+          path: bicep-template
+
+      # Login to Azure
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Deploy infrastructure using Bicep
+      - name: Deploy infrastructure with Bicep
+        uses: azure/arm-deploy@v2
+        with:
+          subscriptionId: ${{ env.SUBSCRIPTION-ID }}
+          resourceGroupName: ${{ env.RESOURCE-GROUP }}
+          template: bicep-template/webapp.bicep
+          parameters: 'webAppName=${{ env.WEBAPP-NAME }} location=${{ env.LOCATION }}'
+          failOnStdErr: false
+
+      # Deploy React app to Azure WebApp using CLI
+      - name: Deploy React app using Azure CLI
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az webapp deploy --name ${{ env.WEBAPP-NAME }} --resource-group ${{ env.RESOURCE-GROUP }} --src-path react-app/app.zip --type zip
