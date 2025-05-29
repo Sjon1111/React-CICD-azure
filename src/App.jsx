@@ -20,7 +20,7 @@ function App() {
           count is {count}
         </button>
         <p>
-          Using Github Action CI/CD in azure devops
+          Using Github Action CI/CD in azure devops.
         </p>
       </div>
 
