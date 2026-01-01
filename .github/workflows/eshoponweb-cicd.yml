@@ -51,14 +51,14 @@ jobs:
     steps:
       # Download React app artifact
       - name: Download React app artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: react-app
           path: react-app
 
       # Download Bicep template
       - name: Download Bicep template
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: bicep-template
           path: bicep-template
